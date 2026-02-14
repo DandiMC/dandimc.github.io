@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Seed Extractor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#0d1117;--card:#161b22;--border:#30363d;
+            --green:#4ade80;--green-dim:rgba(74,222,128,.12);
+            --green-glow:rgba(74,222,128,.25);--text:#e6edf3;
+            --muted:#8b949e;--red:#f85149;--red-dim:rgba(248,81,73,.1);
+        }
+        @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--green-glow)}50%{box-shadow:0 0 0 10px transparent}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+        @keyframes bgShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+        body{
+            font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+            background:var(--bg);color:var(--text);
+            min-height:100vh;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;padding:20px;
+            background-image:
+                radial-gradient(circle at 20% 50%,rgba(74,222,128,.04) 0%,transparent 50%),
+                radial-gradient(circle at 80% 50%,rgba(56,189,248,.04) 0%,transparent 50%);
+        }
+
+        .container{max-width:620px;width:100%;text-align:center}
+
+        .logo{font-size:3.2em;margin-bottom:4px;display:block;
+            filter:drop-shadow(0 0 20px var(--green-glow))}
+        h1{font-size:2em;font-weight:800;margin-bottom:6px;
+            background:linear-gradient(135deg,var(--green),#38bdf8);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+            background-clip:text}
+        .subtitle{color:var(--muted);margin-bottom:36px;font-size:1.05em;line-height:1.5}
+        .subtitle strong{color:var(--text)}
+
+        /* ---- Drop zone ---- */
+        .drop-zone{
+            border:2.5px dashed var(--border);border-radius:18px;
+            padding:54px 32px;cursor:pointer;position:relative;
+            transition:all .3s ease;background:var(--card);
+        }
+        .drop-zone:hover,.drop-zone.dragover{
+            border-color:var(--green);background:var(--green-dim);
+            transform:translateY(-2px);
+            box-shadow:0 8px 30px rgba(0,0,0,.3),0 0 0 1px var(--green);
+        }
+        .drop-zone .dz-icon{font-size:3.2em;margin-bottom:12px;display:block;
+            transition:transform .3s}
+        .drop-zone:hover .dz-icon{transform:scale(1.12) rotate(-4deg)}
+        .drop-zone p{color:var(--muted);font-size:1.05em;line-height:1.6}
+        .drop-zone p strong{color:var(--text)}
+        .drop-zone input[type="file"]{
+            position:absolute;inset:0;opacity:0;cursor:pointer}
+        .drop-zone .formats{
+            margin-top:14px;font-size:.82em;color:#555;
+            display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+        .drop-zone .formats span{
+            background:rgba(255,255,255,.05);padding:3px 10px;
+            border-radius:6px;border:1px solid rgba(255,255,255,.06)}
+
+        .file-info{margin-top:14px;color:var(--muted);font-size:.88em}
+
+        /* ---- Result card ---- */
+        .result-card{
+            margin-top:28px;background:var(--card);
+            border:2px solid var(--green);border-radius:18px;
+            padding:32px 28px;animation:fadeUp .5s ease both;
+            box-shadow:0 0 40px rgba(74,222,128,.08);
+        }
+        .result-card h2{color:var(--green);margin-bottom:8px;font-size:1.4em}
+        .result-card .world-name{color:var(--muted);margin-bottom:20px;font-size:.95em}
+
+        .seed-box{
+            display:flex;align-items:center;gap:10px;
+            background:rgba(0,0,0,.35);border-radius:14px;
+            padding:16px 20px;border:1px solid var(--border);
+        }
+        .seed-value{
+            flex:1;font-family:'Courier New',monospace;
+            font-size:1.65em;font-weight:700;color:#fff;
+            letter-spacing:.5px;word-break:break-all;text-align:left;
+            -webkit-user-select:all;user-select:all;
+        }
+        .copy-btn{
+            background:var(--green);color:#0d1117;border:none;
+            border-radius:10px;padding:10px 18px;font-size:.95em;
+            cursor:pointer;font-weight:700;transition:all .2s;
+            white-space:nowrap;display:flex;align-items:center;gap:6px;
+        }
+        .copy-btn:hover{background:#22c55e;transform:scale(1.05)}
+        .copy-btn:active{transform:scale(.97)}
+        .copy-btn.copied{background:#16a34a;animation:pulse .6s}
+
+        .meta{
+            margin-top:18px;display:flex;gap:12px;
+            justify-content:center;flex-wrap:wrap}
+        .meta .tag{
+            background:rgba(255,255,255,.06);padding:5px 14px;
+            border-radius:8px;font-size:.82em;color:var(--muted);
+            border:1px solid var(--border)}
+        .meta .tag strong{color:var(--text)}
+
+        /* ---- Error ---- */
+        .error-card{
+            margin-top:28px;background:var(--red-dim);
+            border:2px solid var(--red);border-radius:18px;
+            padding:24px;color:var(--red);animation:fadeUp .4s ease,shake .5s .1s;
+            font-size:1em;line-height:1.6;
+        }
+
+        /* ---- Loading ---- */
+        .loading{margin-top:28px;display:flex;flex-direction:column;align-items:center;gap:14px}
+        .spinner{
+            width:38px;height:38px;border:3px solid var(--border);
+            border-top-color:var(--green);border-radius:50%;
+            animation:spin .7s linear infinite}
+        .loading p{color:var(--muted);font-size:.95em}
+
+        /* ---- Footer ---- */
+        footer{margin-top:48px;color:#333;font-size:.78em;text-align:center;line-height:1.6}
+        footer a{color:#555;text-decoration:none}
+        footer a:hover{color:var(--green)}
+
+        /* ---- Responsive ---- */
+        @media(max-width:500px){
+            h1{font-size:1.5em}
+            .seed-value{font-size:1.15em}
+            .seed-box{flex-direction:column}
+            .copy-btn{width:100%;justify-content:center}
+            .drop-zone{padding:40px 20px}
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <span class="logo">⛏️</span>
+    <h1>Minecraft Seed Extractor</h1>
+    <p class="subtitle">Sube tu archivo <strong>level.dat</strong> para extraer la semilla del mundo.<br>Compatible con <strong>Java</strong> y <strong>Bedrock</strong>, todas las versiones.</p>
+
+    <div class="drop-zone" id="dropZone">
+        <span class="dz-icon">📂</span>
+        <p>Arrastra y suelta <strong>level.dat</strong> aquí<br>o haz clic para seleccionar</p>
+        <div class="formats">
+            <span>Java Edition</span>
+            <span>Bedrock Edition</span>
+            <span>Todas las versiones</span>
+        </div>
+        <input type="file" id="fileInput" accept=".dat,.dat_old" title="Selecciona un archivo level.dat">
+    </div>
+
+    <div id="fileInfo" class="file-info"></div>
+    <div id="output"></div>
+</div>
+
+<footer>
+    Funciona 100 % en tu navegador — ningún archivo se sube a ningún servidor.<br>
+    Compatibilidad: Java Edition (Alpha → 1.21+) &amp; Bedrock Edition
+</footer>
+
+<script>
+/* ================================================================
+   NBT Reader — soporta Big-Endian (Java) y Little-Endian (Bedrock)
+   ================================================================ */
+class NBTReader {
+    constructor(data, littleEndian = false) {
+        if (data instanceof Uint8Array) {
+            this.view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+        } else {
+            this.view = new DataView(data);
+        }
+        this.offset = 0;
+        this.le = littleEndian;
+    }
+
+    _check(n) {
+        if (this.offset + n > this.view.byteLength)
+            throw new RangeError('NBT data truncated');
+    }
+
+    readInt8()    { this._check(1); return this.view.getInt8(this.offset++); }
+    readUint8()   { this._check(1); return this.view.getUint8(this.offset++); }
+
+    readInt16()   { this._check(2); const v = this.view.getInt16(this.offset, this.le);  this.offset += 2; return v; }
+    readUint16()  { this._check(2); const v = this.view.getUint16(this.offset, this.le); this.offset += 2; return v; }
+    readInt32()   { this._check(4); const v = this.view.getInt32(this.offset, this.le);  this.offset += 4; return v; }
+    readFloat32() { this._check(4); const v = this.view.getFloat32(this.offset, this.le);this.offset += 4; return v; }
+    readFloat64() { this._check(8); const v = this.view.getFloat64(this.offset, this.le);this.offset += 8; return v; }
+
+    readInt64() {
+        this._check(8);
+        const v = this.view.getBigInt64(this.offset, this.le);
+        this.offset += 8;
+        return v;
+    }
+
+    readString() {
+        const len = this.readUint16();
+        this._check(len);
+        const start = this.view.byteOffset + this.offset;
+        const bytes = new Uint8Array(this.view.buffer, start, len);
+        this.offset += len;
+        return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    readPayload(type) {
+        switch (type) {
+            case 0:  return null;                          // TAG_End
+            case 1:  return this.readInt8();                // TAG_Byte
+            case 2:  return this.readInt16();               // TAG_Short
+            case 3:  return this.readInt32();               // TAG_Int
+            case 4:  return this.readInt64();               // TAG_Long
+            case 5:  return this.readFloat32();             // TAG_Float
+            case 6:  return this.readFloat64();             // TAG_Double
+            case 7: {                                       // TAG_Byte_Array
+                const len = this.readInt32();
+                this._check(len);
+                const a = new Int8Array(len);
+                for (let i = 0; i < len; i++) a[i] = this.readInt8();
+                return a;
+            }
+            case 8:  return this.readString();              // TAG_String
+            case 9: {                                       // TAG_List
+                const elType = this.readUint8();
+                const len    = this.readInt32();
+                const a = [];
+                for (let i = 0; i < len; i++) a.push(this.readPayload(elType));
+                return a;
+            }
+            case 10: {                                      // TAG_Compound
+                const obj = {};
+                for (;;) {
+                    const t = this.readUint8();
+                    if (t === 0) break;                     // TAG_End
+                    const name = this.readString();
+                    obj[name] = this.readPayload(t);
+                }
+                return obj;
+            }
+            case 11: {                                      // TAG_Int_Array
+                const len = this.readInt32();
+                const a = new Int32Array(len);
+                for (let i = 0; i < len; i++) a[i] = this.readInt32();
+                return a;
+            }
+            case 12: {                                      // TAG_Long_Array
+                const len = this.readInt32();
+                const a = [];
+                for (let i = 0; i < len; i++) a.push(this.readInt64());
+                return a;
+            }
+            default:
+                throw new Error('Tag NBT desconocido: ' + type);
+        }
+    }
+
+    /** Lee el tag raíz y devuelve su contenido como objeto */
+    parse() {
+        const rootType = this.readUint8();
+        if (rootType !== 10) throw new Error('El tag raíz no es Compound');
+        this.readString();           // nombre del tag raíz (normalmente vacío)
+        return this.readPayload(10); // contenido
+    }
+}
+
+/* ================================================================
+   Buscar la semilla dentro del NBT parseado
+   ================================================================ */
+function findSeed(data) {
+    if (!data || typeof data !== 'object') return null;
+
+    // Java 1.16+  →  Data.WorldGenSettings.seed
+    try {
+        const s = data?.Data?.WorldGenSettings?.seed;
+        if (typeof s === 'bigint') return { seed: s, edition: 'Java Edition', version: '1.16+' };
+    } catch (_) {}
+
+    // Java pre-1.16  →  Data.RandomSeed
+    try {
+        const s = data?.Data?.RandomSeed;
+        if (typeof s === 'bigint') return { seed: s, edition: 'Java Edition', version: 'Pre-1.16' };
+    } catch (_) {}
+
+    // Bedrock  →  RandomSeed en la raíz
+    try {
+        const s = data?.RandomSeed;
+        if (typeof s === 'bigint') return { seed: s, edition: 'Bedrock Edition', version: '' };
+    } catch (_) {}
+
+    // Búsqueda profunda como respaldo
+    return deepSearch(data, 0);
+}
+
+function deepSearch(obj, depth) {
+    if (depth > 12 || !obj || typeof obj !== 'object') return null;
+    const keys = Object.keys(obj);
+    for (const k of keys) {
+        if ((k === 'RandomSeed' || k === 'seed') && typeof obj[k] === 'bigint')
+            return { seed: obj[k], edition: 'Detectada automáticamente', version: '' };
+        if (typeof obj[k] === 'object' && obj[k] !== null && !(obj[k] instanceof Int8Array)
+            && !(obj[k] instanceof Int32Array)) {
+            const r = deepSearch(obj[k], depth + 1);
+            if (r) return r;
+        }
+    }
+    return null;
+}
+
+/** Intenta obtener el nombre del mundo */
+function findLevelName(data) {
+    try { if (typeof data?.Data?.LevelName === 'string') return data.Data.LevelName; } catch (_) {}
+    try { if (typeof data?.LevelName === 'string') return data.LevelName; } catch (_) {}
+    return null;
+}
+
+/* ================================================================
+   Procesar el archivo subido
+   ================================================================ */
+async function processFile(file) {
+    const out  = document.getElementById('output');
+    const info = document.getElementById('fileInfo');
+
+    info.textContent = `📄 ${file.name}  (${(file.size / 1024).toFixed(1)} KB)`;
+    out.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analizando archivo…</p></div>';
+
+    // Pequeña pausa para que se renderice el spinner
+    await new Promise(r => setTimeout(r, 60));
+
+    try {
+        const buffer = await file.arrayBuffer();
+        const uint8  = new Uint8Array(buffer);
+        const isGzip = uint8.length >= 2 && uint8[0] === 0x1F && uint8[1] === 0x8B;
+
+        /* ---- Intento 1: Java Edition (gzip + big-endian) ---- */
+        if (isGzip) {
+            try {
+                const inflated = pako.inflate(uint8);
+                const nbt = new NBTReader(inflated, false).parse();
+                const res = findSeed(nbt);
+                if (res) { showResult(res, nbt); return; }
+            } catch (e) { console.warn('Java parse falló:', e); }
+        }
+
+        /* ---- Intento 2: Bedrock Edition (8-byte header + little-endian) ---- */
+        if (buffer.byteLength > 8) {
+            try {
+                const nbtBuf = buffer.slice(8);
+                const nbt = new NBTReader(nbtBuf, true).parse();
+                const res = findSeed(nbt);
+                if (res) { showResult(res, nbt); return; }
+            } catch (e) { console.warn('Bedrock parse falló:', e); }
+        }
+
+        /* ---- Intento 3: Sin comprimir, big-endian ---- */
+        try {
+            const nbt = new NBTReader(buffer, false).parse();
+            const res = findSeed(nbt);
+            if (res) { showResult(res, nbt); return; }
+        } catch (e) { console.warn('Raw BE parse falló:', e); }
+
+        /* ---- Intento 4: Sin comprimir, little-endian, sin header ---- */
+        try {
+            const nbt = new NBTReader(buffer, true).parse();
+            const res = findSeed(nbt);
+            if (res) { showResult(res, nbt); return; }
+        } catch (e) { console.warn('Raw LE parse falló:', e); }
+
+        showError('No se pudo encontrar la semilla. Asegúrate de subir un archivo <strong>level.dat</strong> válido de Minecraft.');
+
+    } catch (e) {
+        showError('Error al procesar el archivo: ' + escapeHtml(e.message));
+    }
+}
+
+/* ================================================================
+   UI — Mostrar resultado / error / copiar
+   ================================================================ */
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function showResult(result, nbt) {
+    const seedStr   = result.seed.toString();
+    const levelName = findLevelName(nbt);
+    const out = document.getElementById('output');
+
+    let nameHtml = '';
+    if (levelName) {
+        nameHtml = `<p class="world-name">🌍 Mundo: <strong>${escapeHtml(levelName)}</strong></p>`;
+    }
+
+    let versionTag = '';
+    if (result.version) {
+        versionTag = `<span class="tag">📦 <strong>${escapeHtml(result.version)}</strong></span>`;
+    }
+
+    out.innerHTML = `
+        <div class="result-card">
+            <h2>🌱 ¡Semilla encontrada!</h2>
+            ${nameHtml}
+            <div class="seed-box">
+                <span class="seed-value" id="seedText">${escapeHtml(seedStr)}</span>
+                <button class="copy-btn" id="copyBtn" onclick="copySeed()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    Copiar
+                </button>
+            </div>
+            <div class="meta">
+                <span class="tag">🎮 <strong>${escapeHtml(result.edition)}</strong></span>
+                ${versionTag}
+            </div>
+        </div>`;
+}
+
+function showError(msg) {
+    document.getElementById('output').innerHTML =
+        `<div class="error-card">❌ ${msg}</div>`;
+}
+
+async function copySeed() {
+    const text = document.getElementById('seedText').textContent;
+    const btn  = document.getElementById('copyBtn');
+
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (_) {
+        // Fallback para contextos no seguros
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    }
+
+    btn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        ¡Copiado!`;
+    btn.classList.add('copied');
+
+    setTimeout(() => {
+        btn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copiar`;
+        btn.classList.remove('copied');
+    }, 2200);
+}
+
+/* ================================================================
+   Eventos: drag-and-drop + input file
+   ================================================================ */
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+    if (e.target.files.length) processFile(e.target.files[0]);
+});
+</script>
+</body>
+</html>
