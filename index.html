@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DandiMC | Mis Proyectos</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --accent: #4ade80;
+            --accent-blue: #38bdf8;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, var(--accent), var(--accent-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .links-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            width: 90%;
+            padding-bottom: 50px;
+        }
+
+        .project-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 25px;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 10px 30px rgba(74, 222, 128, 0.1);
+        }
+
+        .project-card h2 {
+            margin: 0;
+            font-size: 1.4em;
+            color: var(--accent);
+        }
+
+        .project-card p {
+            margin: 0;
+            color: #8b949e;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .project-card.disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>DandiMC Hub</h1>
+        <p>Bienvenido a mi rincón de utilidades y contenido de Minecraft.</p>
+    </div>
+
+    <div class="links-container">
+        <!-- Tarjeta del Extractor -->
+        <a href="/extractor-semilla" class="project-card">
+            <div class="icon">🌱</div>
+            <h2>Seed Extractor</h2>
+            <p>Extrae la semilla de cualquier mundo de Java o Bedrock usando el archivo level.dat.</p>
+        </a>
+
+        <!-- Tarjeta del Canal -->
+        <a href="https://www.youtube.com/@ElDandiMC" target="_blank" rel="noopener noreferrer" class="project-card">
+            <div class="icon">🎬</div>
+            <h2>Mi Canal</h2>
+            <p>Tutoriales, curiosidades y mecánicas técnicas de Minecraft.</p>
+        </a>
+
+        <!-- Futuro Proyecto -->
+        <a href="#" class="project-card disabled">
+            <div class="icon">🛠️</div>
+            <h2>Próximamente</h2>
+            <p>Más herramientas técnicas en desarrollo...</p>
+        </a>
+    </div>
+
+</body>
+</html>
